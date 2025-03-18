@@ -36,6 +36,7 @@ var (
 type Document struct {
 	path     string
 	docxFile *os.File
+	zipCloser *zip.ReadCloser
 	zipFile  *zip.Reader
 
 	// all files from the zip archive which we're interested in
@@ -67,7 +68,9 @@ func Open(path string) (*Document, error) {
 		return nil, fmt.Errorf("unable to open zip reader: %s", err)
 	}
 
-	return newDocument(&rc.Reader, path, fh)
+	doc, error := newDocument(&rc.Reader, path, fh)
+	doc.zipCloser = rc
+	return doc, error
 }
 
 // OpenBytes allows to create a Document from a byte slice.
@@ -427,6 +430,12 @@ func (d *Document) isModifiedFile(searchFileName string) bool {
 func (d *Document) Close() {
 	if d.docxFile != nil {
 		err := d.docxFile.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	if d.zipCloser != nil {
+		err := d.zipCloser.Close()
 		if err != nil {
 			log.Println(err)
 		}
